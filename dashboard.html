@@ -116,6 +116,23 @@
         document.getElementById('alamatWarga').innerText = user.alamat_domisili;
         document.getElementById('labelBulanIni').innerText = bulanIni;
 
+        // Fungsi normalisasi periode agar aman dari format tanggal Google Sheets
+        function normalisasiPeriode(val) {
+            if (!val) return "";
+            const str = String(val).trim();
+            if (/^\d{4}-\d{2}-\d{2}/.test(str)) {
+                const bulanIndo = [
+                    "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+                    "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+                ];
+                const d = new Date(str);
+                if (!isNaN(d.getTime())) {
+                    return `${bulanIndo[d.getMonth()]} ${d.getFullYear()}`;
+                }
+            }
+            return str;
+        }
+
         fetch(`${CONFIG.SCRIPT_URL}?action=get_riwayat&nik=${user.nik}`)
             .then(res => res.json())
             .then(res => {
@@ -123,8 +140,20 @@
                 const elWifi = document.getElementById('statusWifi');
 
                 if (res.result === 'success') {
-                    const lunasSampah = res.riwayat.find(r => r.jenis === 'Iuran Sampah' && r.periode === bulanIni && r.status === 'Lunas');
-                    const lunasWifi = res.riwayat.find(r => r.jenis === 'Iuran WiFi' && r.periode === bulanIni && r.status === 'Lunas');
+                    // Cari dengan pencocokan yang lebih aman (normalisasi teks & huruf kecil)
+                    const lunasSampah = res.riwayat.find(r => {
+                        const jenis = String(r.jenis || "").toLowerCase().trim();
+                        const periode = normalisasiPeriode(r.periode).toLowerCase().trim();
+                        const status = String(r.status || "").toLowerCase().trim();
+                        return jenis.includes('sampah') && periode === bulanIni.toLowerCase().trim() && status === 'lunas';
+                    });
+
+                    const lunasWifi = res.riwayat.find(r => {
+                        const jenis = String(r.jenis || "").toLowerCase().trim();
+                        const periode = normalisasiPeriode(r.periode).toLowerCase().trim();
+                        const status = String(r.status || "").toLowerCase().trim();
+                        return jenis.includes('wifi') && periode === bulanIni.toLowerCase().trim() && status === 'lunas';
+                    });
 
                     if (lunasSampah) {
                         elSampah.innerText = "✓ Lunas";
